@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
+import plotly.express as px
 from sklearn.model_selection import train_test_split
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.ensemble import RandomForestClassifier
@@ -13,6 +14,9 @@ from xgboost import XGBClassifier
 from imblearn.over_sampling import SMOTE
 from nltk.corpus import stopwords
 import nltk
+import re
+import missingno as msno
+from scipy import stats
 
 # Initialize nltk
 try:
@@ -21,83 +25,143 @@ except LookupError:
     nltk.download('stopwords')
 stop_words = set(stopwords.words("english"))
 
-def clean_text(text):
-    if pd.isna(text):
-        return ""
-    # Remove URLs
-    text = re.sub(r'http\S+|www\S+|https\S+', '', text, flags=re.MULTILINE)
-    # Remove HTML tags
-    text = re.sub(r'<.*?>', '', text)
-    # Remove special characters and digits
-    text = re.sub(r'[^a-zA-Z\s]', '', text)
-    # Convert to lowercase
-    text = text.lower()
-    # Remove extra whitespace
-    text = ' '.join(text.split())
-    return text
+def analyze_word_frequencies(df):
+    """Analyze and visualize word frequencies in fraudulent and non-fraudulent postings"""
+    st.subheader("Word Frequency Analysis")
+
+    # Separate fraudulent and non-fraudulent job postings
+    fraudulent_jobs = df[df['fraudulent'] == 1]['text']
+    non_fraudulent_jobs = df[df['fraudulent'] == 0]['text']
+
+    def get_word_freq(text_series):
+        words = ' '.join(text_series).split()
+        return pd.Series(words).value_counts()
+
+    # Plot top words for fraudulent jobs
+    fraud_word_freq = get_word_freq(fraudulent_jobs).head(20)
+    fig_fraud = px.bar(fraud_word_freq, 
+                      x=fraud_word_freq.index, 
+                      y=fraud_word_freq.values,
+                      title='Top Words in Fraudulent Job Postings',
+                      labels={'index': 'Words', 'y': 'Frequency'},
+                      color=fraud_word_freq.values,
+                      color_continuous_scale='Reds')
+    st.plotly_chart(fig_fraud)
+
+    # Plot top words for non-fraudulent jobs
+    non_fraud_word_freq = get_word_freq(non_fraudulent_jobs).head(20)
+    fig_non_fraud = px.bar(non_fraud_word_freq,
+                          x=non_fraud_word_freq.index,
+                          y=non_fraud_word_freq.values,
+                          title='Top Words in Non-Fraudulent Job Postings',
+                          labels={'index': 'Words', 'y': 'Frequency'},
+                          color=non_fraud_word_freq.values,
+                          color_continuous_scale='Blues')
+    st.plotly_chart(fig_non_fraud)
+
+    # Compare word frequencies
+    st.write("\nUnique words in fraudulent vs non-fraudulent postings:")
+    fraud_unique = set(fraud_word_freq.index) - set(non_fraud_word_freq.index)
+    non_fraud_unique = set(non_fraud_word_freq.index) - set(fraud_word_freq.index)
+    st.write("Words unique to fraudulent postings:", list(fraud_unique))
+    st.write("Words unique to non-fraudulent postings:", list(non_fraud_unique))
+
+def plot_class_distribution(df):
+    """Plot the distribution of fraudulent vs non-fraudulent postings"""
+    st.subheader("Class Distribution")
+
+    fig = px.histogram(df, 
+                      x='fraudulent',
+                      title='Distribution of Fraudulent vs Non-Fraudulent Job Postings',
+                      labels={'fraudulent': 'Fraudulent'},
+                      color='fraudulent',
+                      color_discrete_sequence=['#1f77b4', '#ff7f0e'])
+    
+    fig.update_layout(
+        xaxis_title='Fraudulent',
+        yaxis_title='Count',
+        title_x=0.5,
+        font=dict(family="Arial, sans-serif", size=14),
+        xaxis=dict(gridcolor='gray'),
+        yaxis=dict(gridcolor='gray')
+    )
+    
+    st.plotly_chart(fig)
+
+    # Add statistics
+    fraud_percent = (df['fraudulent'].mean() * 100)
+    st.write(f"Percentage of fraudulent postings: {fraud_percent:.2f}%")
+    st.write(f"Total number of postings: {len(df)}")
+    st.write(f"Number of fraudulent postings: {df['fraudulent'].sum()}")
+    st.write(f"Number of legitimate postings: {len(df) - df['fraudulent'].sum()}")
+
+def handle_missing_values(df):
+    """Handle missing values in all columns"""
+    st.subheader("Missing Value Handling")
+
+    # Store initial missing value counts
+    initial_missing = df.isnull().sum()
+    
+    # Text columns
+    text_columns = ['title', 'company_profile', 'description', 'requirements', 'benefits']
+    df[text_columns] = df[text_columns].fillna(' ')
+    
+    # Categorical columns
+    categorical_columns = ['location', 'department', 'salary_range', 'employment_type',
+                         'required_experience', 'required_education', 'industry', 'function']
+    for col in categorical_columns:
+        if col in df.columns:
+            df[col].fillna('Not Specified', inplace=True)
+    
+    # Display missing value handling results
+    final_missing = df.isnull().sum()
+    
+    # Create comparison dataframe
+    missing_comparison = pd.DataFrame({
+        'Initial Missing': initial_missing,
+        'After Handling': final_missing,
+        'Difference': initial_missing - final_missing
+    })
+    
+    st.write("Missing Values Before and After Handling:")
+    st.dataframe(missing_comparison[missing_comparison['Initial Missing'] > 0])
 
 def preprocess_data(df):
-    st.write("Starting data preprocessing...")
+    """Main preprocessing function"""
+    st.write("Starting data preprocessing and analysis...")
     
-    # Display initial dataset info
-    st.write("Initial Dataset Shape:", df.shape)
+    # Handle missing values
+    handle_missing_values(df)
+    
+    # Plot class distribution
+    plot_class_distribution(df)
+    
+    # Analyze word frequencies
+    df['text'] = df[['title', 'company_profile', 'description', 'requirements', 'benefits']].apply(
+        lambda x: ' '.join(x.dropna()), axis=1)
+    analyze_word_frequencies(df)
+    
+    # Clean text
+    for col in ['title', 'company_profile', 'description', 'requirements', 'benefits']:
+        df[col] = df[col].apply(clean_text)
     
     # Filter for US jobs only
     df = df[df['location'].str.contains('US', na=False)]
-    st.write("Dataset Shape after filtering US jobs:", df.shape)
+    st.write("\nDataset Shape after filtering US jobs:", df.shape)
     
-    # Display missing values
-    missing_values = df.isnull().sum()
-    st.write("Missing Values per Column:")
-    st.write(missing_values)
+    # Create numerical features and handle outliers
+    numerical_features = create_numerical_features(df)
     
-    # Remove unnecessary columns
-    columns_to_drop = ['job_id', 'salary_range', 'department', 'employment_type', 
-                      'required_experience', 'required_education', 'industry', 
-                      'function', 'has_questions', 'telecommuting', 'has_company_logo']
-    df = df.drop(columns=columns_to_drop)
+    # Analyze correlations
+    analyze_correlations(df, numerical_features)
     
-    # Clean text columns
-    text_columns = ['title', 'company_profile', 'description', 'requirements', 'benefits']
-    for col in text_columns:
-        df[col] = df[col].apply(clean_text)
+    # Analyze outliers
+    analyze_outliers(numerical_features)
     
-    # Fill missing values
-    for col in text_columns:
-        df[col] = df[col].fillna('')
-    
-    # Display class distribution
-    st.write("\nClass Distribution:")
-    st.write(df['fraudulent'].value_counts(normalize=True))
-    
-    # Display summary statistics
-    st.write("\nText Length Statistics:")
-    for col in text_columns:
-        df[f'{col}_length'] = df[col].str.len()
-        stats = df[f'{col}_length'].describe()
-        st.write(f"\n{col} length statistics:")
-        st.write(stats)
-        
-        # Create box plot for text length distribution
-        fig, ax = plt.subplots()
-        sns.boxplot(x='fraudulent', y=f'{col}_length', data=df)
-        plt.title(f'{col} Length Distribution by Class')
-        plt.xticks([0, 1], ['Legitimate', 'Fraudulent'])
-        st.pyplot(fig)
-        plt.close()
-        
-        # Remove outliers based on text length (keep within 3 standard deviations)
-        mean = df[f'{col}_length'].mean()
-        std = df[f'{col}_length'].std()
-        df = df[df[f'{col}_length'].between(mean - 3*std, mean + 3*std)]
-        
-        # Drop the temporary length column
-        df = df.drop(columns=f'{col}_length')
-    
-    st.write("\nFinal Dataset Shape after preprocessing:", df.shape)
+    # Generate summary statistics
+    generate_summary_stats(df, numerical_features)
     
     return df
-
 def prepare_data(df):
     # Text preprocessing
     text_columns = ['title', 'company_profile', 'description', 'requirements', 'benefits']

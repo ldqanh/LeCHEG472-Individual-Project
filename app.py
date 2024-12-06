@@ -181,6 +181,125 @@ def prepare_data(df):
     
     return X_train_balanced, X_test, y_train_balanced, y_test, vectorizer
 
+def display_data_analysis(df):
+    st.header("Data Analysis Dashboard")
+    
+    # Create tabs for different analyses
+    tab1, tab2, tab3, tab4, tab5 = st.tabs([
+        "Overview & Distribution", 
+        "Missing Data", 
+        "Word Analysis",
+        "Correlations",
+        "Model Results"
+    ])
+    
+    with tab1:
+        # Distribution of fraudulent vs non-fraudulent
+        fig = px.histogram(df, 
+                          x='fraudulent', 
+                          title='Distribution of Fraudulent vs Non-Fraudulent Job Postings',
+                          labels={'fraudulent': 'Fraudulent'},
+                          color='fraudulent',
+                          color_discrete_sequence=['#1f77b4', '#ff7f0e'])
+        
+        fig.update_layout(
+            xaxis_title='Fraudulent',
+            yaxis_title='Count',
+            title_x=0.5
+        )
+        st.plotly_chart(fig)
+        
+        # Dataset info
+        st.subheader("Dataset Information")
+        col1, col2 = st.columns(2)
+        with col1:
+            st.write("Total Samples:", len(df))
+            st.write("Legitimate Jobs:", len(df[df['fraudulent'] == 0]))
+        with col2:
+            st.write("Fraudulent Jobs:", len(df[df['fraudulent'] == 1]))
+            st.write("Fraud Percentage:", f"{(df['fraudulent'].mean() * 100):.2f}%")
+    
+    with tab2:
+        st.subheader("Missing Values Analysis")
+        # Missing values heatmap
+        missing_data = df.isnull().sum()
+        fig = px.bar(x=missing_data.index, 
+                    y=missing_data.values,
+                    title="Missing Values by Column")
+        st.plotly_chart(fig)
+        
+        # Missing values table
+        missing_df = pd.DataFrame({
+            'Column': missing_data.index,
+            'Missing Values': missing_data.values,
+            'Percentage': (missing_data.values / len(df) * 100).round(2)
+        })
+        st.dataframe(missing_df)
+    
+    with tab3:
+        st.subheader("Word Analysis")
+        
+        # Separate fraudulent and non-fraudulent job postings
+        fraudulent_jobs = df[df['fraudulent'] == 1]['text']
+        non_fraudulent_jobs = df[df['fraudulent'] == 0]['text']
+        
+        def plot_top_words(text_series, title):
+            word_freq = pd.Series(' '.join(text_series).split()).value_counts().head(20)
+            fig = px.bar(word_freq, 
+                        x=word_freq.index, 
+                        y=word_freq.values, 
+                        title=title,
+                        labels={'index': 'Words', 'y': 'Frequency'})
+            st.plotly_chart(fig)
+        
+        plot_top_words(fraudulent_jobs, 'Top Words in Fraudulent Job Postings')
+        plot_top_words(non_fraudulent_jobs, 'Top Words in Non-Fraudulent Job Postings')
+    
+    with tab4:
+        st.subheader("Correlation Analysis")
+        
+        # Create numerical features for correlation
+        numerical_features = pd.DataFrame()
+        text_columns = ['title', 'company_profile', 'description', 'requirements', 'benefits']
+        
+        for col in text_columns:
+            numerical_features[f'{col}_length'] = df[col].str.len()
+            numerical_features[f'{col}_word_count'] = df[col].str.split().str.len()
+        
+        numerical_features['fraudulent'] = df['fraudulent']
+        
+        # Plot correlation matrix
+        corr = numerical_features.corr()
+        fig = px.imshow(corr,
+                       title='Feature Correlation Matrix',
+                       color_continuous_scale='RdBu')
+        st.plotly_chart(fig)
+    
+    with tab5:
+        st.subheader("Model Results")
+        # This tab will be populated after model training
+
+def display_model_results(accuracies, reports, conf_matrices):
+    """Display model results in the Model Results tab"""
+    st.subheader("Model Performance Comparison")
+    
+    # Create accuracy comparison
+    accuracy_df = pd.DataFrame({
+        'Model': list(accuracies.keys()),
+        'Accuracy': list(accuracies.values())
+    })
+    
+    fig = px.bar(accuracy_df, 
+                 x='Model', 
+                 y='Accuracy',
+                 title='Model Accuracy Comparison')
+    st.plotly_chart(fig)
+    
+    # Display classification reports
+    for model_name, report in reports.items():
+        st.write(f"\n{model_name} Classification Report:")
+        st.text(report)
+
 def train_random_forest(X_train, y_train):
     rf_model = RandomForestClassifier(n_estimators=100, 
                                     max_depth=10,
@@ -224,7 +343,7 @@ def evaluate_model(model, X_test, y_test, model_name):
     st.write("\nClassification Report:")
     st.text(report)
     
-    return accuracy, conf_matrix
+    return accuracy, report, conf_matrix
 
 def plot_confusion_matrices(conf_matrices, model_names):
     fig, axes = plt.subplots(2, 2, figsize=(15, 15))
@@ -243,6 +362,9 @@ def compare_models(df):
     # Prepare data
     X_train, X_test, y_train, y_test, vectorizer = prepare_data(df)
     
+    # First, show data analysis
+    display_data_analysis(df)
+    
     # Train models
     st.write("Training Random Forest...")
     rf_model = train_random_forest(X_train, y_train)
@@ -259,26 +381,27 @@ def compare_models(df):
     # Evaluate models
     models = [rf_model, xgb_model, lr_model, svm_model]
     model_names = ['Random Forest', 'XGBoost', 'Logistic Regression', 'SVM']
-    accuracies = []
-    conf_matrices = []
+    accuracies = {}
+    reports = {}
+    conf_matrices = {}
     
     for model, name in zip(models, model_names):
-        accuracy, conf_matrix = evaluate_model(model, X_test, y_test, name)
-        accuracies.append(accuracy)
-        conf_matrices.append(conf_matrix)
+        accuracy, report, conf_matrix = evaluate_model(model, X_test, y_test, name)
+        accuracies[name] = accuracy
+        reports[name] = report
+        conf_matrices[name] = conf_matrix
     
-    # Plot confusion matrices
-    conf_matrix_fig = plot_confusion_matrices(conf_matrices, model_names)
+    # Display model results
+    display_model_results(accuracies, reports, conf_matrices)
     
     # Find best model
-    best_model_index = np.argmax(accuracies)
-    best_model = models[best_model_index]
-    best_model_name = model_names[best_model_index]
+    best_model_name = max(accuracies.items(), key=lambda x: x[1])[0]
+    best_model = models[model_names.index(best_model_name)]
     
     st.write(f"\nBest Model: {best_model_name}")
-    st.write(f"Best Accuracy: {accuracies[best_model_index]:.4f}")
+    st.write(f"Best Accuracy: {accuracies[best_model_name]:.4f}")
     
-    return best_model, vectorizer, conf_matrix_fig
+    return best_model, vectorizer
 
 # Set the title
 st.title("Fake Job Post Detection")

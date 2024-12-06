@@ -425,17 +425,6 @@ def compare_models(df):
     
     return best_model, vectorizer, conf_matrix_fig
 
-
-if st.button("Compare Models"):
-    with st.spinner("Training and comparing models..."):
-        best_model, vectorizer, conf_matrix_fig = compare_models(df)
-        
-        st.success("Model comparison completed!")
-        st.pyplot(conf_matrix_fig)
-        
-        # Save best model and vectorizer for predictions
-        st.session_state['best_model'] = best_model
-        st.session_state['vectorizer'] = vectorizer
 # Set the title
 st.title("Fake Job Post Detection")
     

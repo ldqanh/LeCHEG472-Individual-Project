@@ -21,6 +21,83 @@ except LookupError:
     nltk.download('stopwords')
 stop_words = set(stopwords.words("english"))
 
+def clean_text(text):
+    if pd.isna(text):
+        return ""
+    # Remove URLs
+    text = re.sub(r'http\S+|www\S+|https\S+', '', text, flags=re.MULTILINE)
+    # Remove HTML tags
+    text = re.sub(r'<.*?>', '', text)
+    # Remove special characters and digits
+    text = re.sub(r'[^a-zA-Z\s]', '', text)
+    # Convert to lowercase
+    text = text.lower()
+    # Remove extra whitespace
+    text = ' '.join(text.split())
+    return text
+
+def preprocess_data(df):
+    st.write("Starting data preprocessing...")
+    
+    # Display initial dataset info
+    st.write("Initial Dataset Shape:", df.shape)
+    
+    # Filter for US jobs only
+    df = df[df['location'].str.contains('US', na=False)]
+    st.write("Dataset Shape after filtering US jobs:", df.shape)
+    
+    # Display missing values
+    missing_values = df.isnull().sum()
+    st.write("Missing Values per Column:")
+    st.write(missing_values)
+    
+    # Remove unnecessary columns
+    columns_to_drop = ['job_id', 'salary_range', 'department', 'employment_type', 
+                      'required_experience', 'required_education', 'industry', 
+                      'function', 'has_questions', 'telecommuting', 'has_company_logo']
+    df = df.drop(columns=columns_to_drop)
+    
+    # Clean text columns
+    text_columns = ['title', 'company_profile', 'description', 'requirements', 'benefits']
+    for col in text_columns:
+        df[col] = df[col].apply(clean_text)
+    
+    # Fill missing values
+    for col in text_columns:
+        df[col] = df[col].fillna('')
+    
+    # Display class distribution
+    st.write("\nClass Distribution:")
+    st.write(df['fraudulent'].value_counts(normalize=True))
+    
+    # Display summary statistics
+    st.write("\nText Length Statistics:")
+    for col in text_columns:
+        df[f'{col}_length'] = df[col].str.len()
+        stats = df[f'{col}_length'].describe()
+        st.write(f"\n{col} length statistics:")
+        st.write(stats)
+        
+        # Create box plot for text length distribution
+        fig, ax = plt.subplots()
+        sns.boxplot(x='fraudulent', y=f'{col}_length', data=df)
+        plt.title(f'{col} Length Distribution by Class')
+        plt.xticks([0, 1], ['Legitimate', 'Fraudulent'])
+        st.pyplot(fig)
+        plt.close()
+        
+        # Remove outliers based on text length (keep within 3 standard deviations)
+        mean = df[f'{col}_length'].mean()
+        std = df[f'{col}_length'].std()
+        df = df[df[f'{col}_length'].between(mean - 3*std, mean + 3*std)]
+        
+        # Drop the temporary length column
+        df = df.drop(columns=f'{col}_length')
+    
+    st.write("\nFinal Dataset Shape after preprocessing:", df.shape)
+    
+    return df
+
 def prepare_data(df):
     # Text preprocessing
     text_columns = ['title', 'company_profile', 'description', 'requirements', 'benefits']

@@ -5,9 +5,6 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import classification_report, accuracy_score, confusion_matrix
 from xgboost import XGBClassifier
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Dense, Dropout
-from tensorflow.keras.callbacks import EarlyStopping
 from imblearn.over_sampling import SMOTE
 import seaborn as sns
 import matplotlib.pyplot as plt
@@ -49,40 +46,8 @@ def train_xgboost(X_train, y_train):
     xgb_model.fit(X_train, y_train)
     return xgb_model
 
-def train_neural_network(X_train, y_train):
-    model = Sequential([
-        Dense(256, activation='relu', input_shape=(X_train.shape[1],)),
-        Dropout(0.3),
-        Dense(128, activation='relu'),
-        Dropout(0.2),
-        Dense(64, activation='relu'),
-        Dropout(0.1),
-        Dense(1, activation='sigmoid')
-    ])
-    
-    model.compile(optimizer='adam',
-                 loss='binary_crossentropy',
-                 metrics=['accuracy'])
-    
-    early_stopping = EarlyStopping(monitor='val_loss',
-                                 patience=3,
-                                 restore_best_weights=True)
-    
-    model.fit(X_train.toarray(), y_train,
-              epochs=20,
-              batch_size=32,
-              validation_split=0.2,
-              callbacks=[early_stopping],
-              verbose=0)
-    
-    return model
-
 def evaluate_model(model, X_test, y_test, model_name):
-    if isinstance(model, Sequential):
-        y_pred = (model.predict(X_test.toarray()) > 0.5).astype(int)
-    else:
-        y_pred = model.predict(X_test)
-    
+    y_pred = model.predict(X_test)
     accuracy = accuracy_score(y_test, y_pred)
     report = classification_report(y_test, y_pred)
     conf_matrix = confusion_matrix(y_test, y_pred)
@@ -95,7 +60,7 @@ def evaluate_model(model, X_test, y_test, model_name):
     return accuracy, conf_matrix
 
 def plot_confusion_matrices(conf_matrices, model_names):
-    fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+    fig, axes = plt.subplots(1, 2, figsize=(12, 5))
     
     for i, (conf_matrix, model_name) in enumerate(zip(conf_matrices, model_names)):
         sns.heatmap(conf_matrix, annot=True, fmt='d', ax=axes[i])
@@ -117,12 +82,9 @@ def compare_models(df):
     print("Training XGBoost...")
     xgb_model = train_xgboost(X_train, y_train)
     
-    print("Training Neural Network...")
-    nn_model = train_neural_network(X_train, y_train)
-    
     # Evaluate models
-    models = [rf_model, xgb_model, nn_model]
-    model_names = ['Random Forest', 'XGBoost', 'Neural Network']
+    models = [rf_model, xgb_model]
+    model_names = ['Random Forest', 'XGBoost']
     accuracies = []
     conf_matrices = []
     
@@ -143,6 +105,7 @@ def compare_models(df):
     print(f"Best Accuracy: {accuracies[best_model_index]:.4f}")
     
     return best_model, vectorizer, conf_matrix_fig
+
 
 if uploaded_file:
     # Load the dataset

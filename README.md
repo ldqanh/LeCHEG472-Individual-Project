@@ -129,9 +129,6 @@ All models show strong performance in detecting both legitimate and fraudulent j
 4. Push to the branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
 
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
 
 ## Acknowledgments
 
@@ -140,11 +137,6 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 - Scikit-learn community for machine learning tools
 - Streamlit team for the web application framework
 
-## Notes
-
-- Ensure your Python environment's SSL certificates are updated for NLTK downloads
-- Large datasets may require additional computational resources
-- Model performance may vary based on data quality and characteristics
 
 ## Future Improvements
 

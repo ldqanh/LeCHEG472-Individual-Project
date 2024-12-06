@@ -451,18 +451,30 @@ if uploaded_file:
     st.write("Data Preview:")
     st.dataframe(df.head())
     
-    # Model Comparison
+    # Data Loading and Model Comparison section
 st.header("Model Comparison")
 
-if st.button("Compare Models", key="compare_models_button"):
-    with st.spinner("Training and comparing models..."):
-        best_model, vectorizer, conf_matrix_fig = compare_models(df)
-        st.success("Model comparison completed!")
-        st.pyplot(conf_matrix_fig)
-        
-        # Save best model and vectorizer for predictions
-        st.session_state['best_model'] = best_model
-        st.session_state['vectorizer'] = vectorizer
+# File uploader
+uploaded_file = st.file_uploader("Upload CSV File", type=["csv"], key="csv_uploader")
+
+if uploaded_file is not None:
+    # Load the dataset
+    df = pd.read_csv(uploaded_file, encoding='latin-1')
+    
+    # Show data preview
+    st.write("Data Preview:")
+    st.dataframe(df.head())
+    
+    # Model comparison button
+    if st.button("Compare Models", key="compare_models_button"):
+        with st.spinner("Training and comparing models..."):
+            best_model, vectorizer, conf_matrix_fig = compare_models(df)
+            st.success("Model comparison completed!")
+            st.pyplot(conf_matrix_fig)
+            
+            # Save best model and vectorizer for predictions
+            st.session_state['best_model'] = best_model
+            st.session_state['vectorizer'] = vectorizer
     
     # Prediction section
     if 'best_model' in st.session_state:

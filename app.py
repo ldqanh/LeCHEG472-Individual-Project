@@ -105,7 +105,11 @@ def compare_models(df):
     print(f"Best Accuracy: {accuracies[best_model_index]:.4f}")
     
     return best_model, vectorizer, conf_matrix_fig
-
+# Set the title
+st.title("Fake Job Post Detection")
+# Sidebar for user input
+st.sidebar.title("Options")
+uploaded_file = st.sidebar.file_uploader("Upload CSV File", type=["csv"])
 
 if uploaded_file:
     # Load the dataset

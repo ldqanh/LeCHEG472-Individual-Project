@@ -452,18 +452,17 @@ if uploaded_file:
     st.dataframe(df.head())
     
     # Model Comparison
-    st.header("Model Comparison")
-    
+st.header("Model Comparison")
+
 if st.button("Compare Models", key="compare_models_button"):
     with st.spinner("Training and comparing models..."):
         best_model, vectorizer, conf_matrix_fig = compare_models(df)
-            
-            st.success("Model comparison completed!")
-            st.pyplot(conf_matrix_fig)
-            
-            # Save best model and vectorizer for predictions
-            st.session_state['best_model'] = best_model
-            st.session_state['vectorizer'] = vectorizer
+        st.success("Model comparison completed!")
+        st.pyplot(conf_matrix_fig)
+        
+        # Save best model and vectorizer for predictions
+        st.session_state['best_model'] = best_model
+        st.session_state['vectorizer'] = vectorizer
     
     # Prediction section
     if 'best_model' in st.session_state:

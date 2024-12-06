@@ -454,9 +454,9 @@ if uploaded_file:
     # Model Comparison
     st.header("Model Comparison")
     
-    if st.button("Compare Models"):
-        with st.spinner("Training and comparing models..."):
-            best_model, vectorizer, conf_matrix_fig = compare_models(df)
+if st.button("Compare Models", key="compare_models_button"):
+    with st.spinner("Training and comparing models..."):
+        best_model, vectorizer, conf_matrix_fig = compare_models(df)
             
             st.success("Model comparison completed!")
             st.pyplot(conf_matrix_fig)

@@ -6,6 +6,8 @@ import seaborn as sns
 from sklearn.model_selection import train_test_split
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.svm import LinearSVC
 from sklearn.metrics import classification_report, accuracy_score, confusion_matrix
 from xgboost import XGBClassifier
 from imblearn.over_sampling import SMOTE
@@ -56,6 +58,20 @@ def train_xgboost(X_train, y_train):
     xgb_model.fit(X_train, y_train)
     return xgb_model
 
+def train_logistic_regression(X_train, y_train):
+    lr_model = LogisticRegression(class_weight='balanced',
+                                 max_iter=1000,
+                                 random_state=42)
+    lr_model.fit(X_train, y_train)
+    return lr_model
+
+def train_svm(X_train, y_train):
+    svm_model = LinearSVC(class_weight='balanced',
+                         max_iter=2000,
+                         random_state=42)
+    svm_model.fit(X_train, y_train)
+    return svm_model
+
 def evaluate_model(model, X_test, y_test, model_name):
     y_pred = model.predict(X_test)
     accuracy = accuracy_score(y_test, y_pred)
@@ -70,7 +86,8 @@ def evaluate_model(model, X_test, y_test, model_name):
     return accuracy, conf_matrix
 
 def plot_confusion_matrices(conf_matrices, model_names):
-    fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+    fig, axes = plt.subplots(2, 2, figsize=(15, 15))
+    axes = axes.ravel()
     
     for i, (conf_matrix, model_name) in enumerate(zip(conf_matrices, model_names)):
         sns.heatmap(conf_matrix, annot=True, fmt='d', ax=axes[i])
@@ -92,9 +109,15 @@ def compare_models(df):
     st.write("Training XGBoost...")
     xgb_model = train_xgboost(X_train, y_train)
     
+    st.write("Training Logistic Regression...")
+    lr_model = train_logistic_regression(X_train, y_train)
+    
+    st.write("Training SVM...")
+    svm_model = train_svm(X_train, y_train)
+    
     # Evaluate models
-    models = [rf_model, xgb_model]
-    model_names = ['Random Forest', 'XGBoost']
+    models = [rf_model, xgb_model, lr_model, svm_model]
+    model_names = ['Random Forest', 'XGBoost', 'Logistic Regression', 'SVM']
     accuracies = []
     conf_matrices = []
     

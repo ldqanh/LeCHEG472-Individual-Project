@@ -1,13 +1,23 @@
+import streamlit as st
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
 from sklearn.model_selection import train_test_split
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import classification_report, accuracy_score, confusion_matrix
 from xgboost import XGBClassifier
 from imblearn.over_sampling import SMOTE
-import seaborn as sns
-import matplotlib.pyplot as plt
+from nltk.corpus import stopwords
+import nltk
+
+# Initialize nltk
+try:
+    nltk.data.find('corpora/stopwords')
+except LookupError:
+    nltk.download('stopwords')
+stop_words = set(stopwords.words("english"))
 
 def prepare_data(df):
     # Text preprocessing
@@ -52,10 +62,10 @@ def evaluate_model(model, X_test, y_test, model_name):
     report = classification_report(y_test, y_pred)
     conf_matrix = confusion_matrix(y_test, y_pred)
     
-    print(f"\n{model_name} Results:")
-    print(f"Accuracy: {accuracy:.4f}")
-    print("\nClassification Report:")
-    print(report)
+    st.write(f"\n{model_name} Results:")
+    st.write(f"Accuracy: {accuracy:.4f}")
+    st.write("\nClassification Report:")
+    st.text(report)
     
     return accuracy, conf_matrix
 
@@ -76,10 +86,10 @@ def compare_models(df):
     X_train, X_test, y_train, y_test, vectorizer = prepare_data(df)
     
     # Train models
-    print("Training Random Forest...")
+    st.write("Training Random Forest...")
     rf_model = train_random_forest(X_train, y_train)
     
-    print("Training XGBoost...")
+    st.write("Training XGBoost...")
     xgb_model = train_xgboost(X_train, y_train)
     
     # Evaluate models
@@ -101,12 +111,14 @@ def compare_models(df):
     best_model = models[best_model_index]
     best_model_name = model_names[best_model_index]
     
-    print(f"\nBest Model: {best_model_name}")
-    print(f"Best Accuracy: {accuracies[best_model_index]:.4f}")
+    st.write(f"\nBest Model: {best_model_name}")
+    st.write(f"Best Accuracy: {accuracies[best_model_index]:.4f}")
     
     return best_model, vectorizer, conf_matrix_fig
+
 # Set the title
 st.title("Fake Job Post Detection")
+
 # Sidebar for user input
 st.sidebar.title("Options")
 uploaded_file = st.sidebar.file_uploader("Upload CSV File", type=["csv"])
@@ -114,32 +126,12 @@ uploaded_file = st.sidebar.file_uploader("Upload CSV File", type=["csv"])
 if uploaded_file:
     # Load the dataset
     df = pd.read_csv(uploaded_file, encoding='latin-1')
-
-    # Preprocess data
-    text_columns = ['title', 'company_profile', 'description', 'requirements', 'benefits']
-    df[text_columns] = df[text_columns].fillna(' ')
-    df['location'].fillna('Unknown', inplace=True)
-    df['department'].fillna('Unknown', inplace=True)
-    df['salary_range'].fillna('Not Specified', inplace=True)
-    df['employment_type'].fillna('Not Specified', inplace=True)
-    df['required_experience'].fillna('Not Specified', inplace=True)
-    df['required_education'].fillna('Not Specified', inplace=True)
-    df['industry'].fillna('Not Specified', inplace=True)
-    df['function'].fillna('Not Specified', inplace=True)
-    # Combine text columns
-    if 'text' not in df.columns:
-        df['text'] = df['title'] + ' ' + df['company_profile'] + ' ' + df['description'] + \
-                     ' ' + df['requirements'] + ' ' + df['benefits']
-        df['text'] = df['text'].apply(lambda x: x.lower())
-        df['text'] = df['text'].apply(lambda x: ' '.join([word for word in x.split() if word not in stop_words]))
+    
+    # Data Preview
     st.write("Data Preview:")
     st.dataframe(df.head())
-    # Data visualization
-    st.write("Category Distribution:")
-    fig, ax = plt.subplots()
-    sns.countplot(data=df, x='fraudulent', ax=ax)
-    st.pyplot(fig)
     
+    # Model Comparison
     st.header("Model Comparison")
     
     if st.button("Compare Models"):
@@ -163,15 +155,11 @@ if uploaded_file:
             input_vector = st.session_state['vectorizer'].transform([input_text])
             
             # Make prediction
-            if isinstance(st.session_state['best_model'], Sequential):
-                prediction = (st.session_state['best_model'].predict(input_vector.toarray()) > 0.5).astype(int)
-            else:
-                prediction = st.session_state['best_model'].predict(input_vector)
+            prediction = st.session_state['best_model'].predict(input_vector)
             
             if prediction[0] == 1:
                 st.warning("This job posting appears to be fraudulent")
             else:
                 st.success("This job posting appears to be legitimate")
-
 else:
     st.write("Please upload a CSV file to begin.")

@@ -333,6 +333,7 @@ def train_svm(X_train, y_train):
     return svm_model
 
 def evaluate_model(model, X_test, y_test, model_name):
+    """Evaluate model and return metrics"""
     y_pred = model.predict(X_test)
     accuracy = accuracy_score(y_test, y_pred)
     report = classification_report(y_test, y_pred)
@@ -344,16 +345,17 @@ def evaluate_model(model, X_test, y_test, model_name):
     st.text(report)
     
     return accuracy, report, conf_matrix
-
+    
 def plot_confusion_matrices(conf_matrices, model_names):
+    """Plot confusion matrices for all models"""
     fig, axes = plt.subplots(2, 2, figsize=(15, 15))
     axes = axes.ravel()
     
-    for i, (conf_matrix, model_name) in enumerate(zip(conf_matrices, model_names)):
-        sns.heatmap(conf_matrix, annot=True, fmt='d', ax=axes[i])
-        axes[i].set_title(f'{model_name} Confusion Matrix')
-        axes[i].set_xlabel('Predicted')
-        axes[i].set_ylabel('Actual')
+    for idx, (conf_matrix, model_name) in enumerate(zip(conf_matrices, model_names)):
+        sns.heatmap(conf_matrix, annot=True, fmt='d', ax=axes[idx])
+        axes[idx].set_title(f'{model_name} Confusion Matrix')
+        axes[idx].set_xlabel('Predicted')
+        axes[idx].set_ylabel('Actual')
     
     plt.tight_layout()
     return fig
@@ -365,31 +367,51 @@ def compare_models(df):
     # First, show data analysis
     display_data_analysis(df)
     
-    # Train models
-    st.write("Training Random Forest...")
-    rf_model = train_random_forest(X_train, y_train)
-    
-    st.write("Training XGBoost...")
-    xgb_model = train_xgboost(X_train, y_train)
-    
-    st.write("Training Logistic Regression...")
-    lr_model = train_logistic_regression(X_train, y_train)
-    
-    st.write("Training SVM...")
-    svm_model = train_svm(X_train, y_train)
-    
-    # Evaluate models
-    models = [rf_model, xgb_model, lr_model, svm_model]
+    # Initialize lists to store results
+    models = []
     model_names = ['Random Forest', 'XGBoost', 'Logistic Regression', 'SVM']
     accuracies = {}
     reports = {}
-    conf_matrices = {}
+    conf_matrices = []
     
-    for model, name in zip(models, model_names):
-        accuracy, report, conf_matrix = evaluate_model(model, X_test, y_test, name)
-        accuracies[name] = accuracy
-        reports[name] = report
-        conf_matrices[name] = conf_matrix
+    # Train and evaluate Random Forest
+    st.write("Training Random Forest...")
+    rf_model = train_random_forest(X_train, y_train)
+    models.append(rf_model)
+    accuracy, report, conf_matrix = evaluate_model(rf_model, X_test, y_test, "Random Forest")
+    accuracies["Random Forest"] = accuracy
+    reports["Random Forest"] = report
+    conf_matrices.append(conf_matrix)
+    
+    # Train and evaluate XGBoost
+    st.write("Training XGBoost...")
+    xgb_model = train_xgboost(X_train, y_train)
+    models.append(xgb_model)
+    accuracy, report, conf_matrix = evaluate_model(xgb_model, X_test, y_test, "XGBoost")
+    accuracies["XGBoost"] = accuracy
+    reports["XGBoost"] = report
+    conf_matrices.append(conf_matrix)
+    
+    # Train and evaluate Logistic Regression
+    st.write("Training Logistic Regression...")
+    lr_model = train_logistic_regression(X_train, y_train)
+    models.append(lr_model)
+    accuracy, report, conf_matrix = evaluate_model(lr_model, X_test, y_test, "Logistic Regression")
+    accuracies["Logistic Regression"] = accuracy
+    reports["Logistic Regression"] = report
+    conf_matrices.append(conf_matrix)
+    
+    # Train and evaluate SVM
+    st.write("Training SVM...")
+    svm_model = train_svm(X_train, y_train)
+    models.append(svm_model)
+    accuracy, report, conf_matrix = evaluate_model(svm_model, X_test, y_test, "SVM")
+    accuracies["SVM"] = accuracy
+    reports["SVM"] = report
+    conf_matrices.append(conf_matrix)
+    
+    # Plot confusion matrices
+    conf_matrix_fig = plot_confusion_matrices(conf_matrices, model_names)
     
     # Display model results
     display_model_results(accuracies, reports, conf_matrices)
@@ -401,8 +423,19 @@ def compare_models(df):
     st.write(f"\nBest Model: {best_model_name}")
     st.write(f"Best Accuracy: {accuracies[best_model_name]:.4f}")
     
-    return best_model, vectorizer
+    return best_model, vectorizer, conf_matrix_fig
 
+
+if st.button("Compare Models"):
+    with st.spinner("Training and comparing models..."):
+        best_model, vectorizer, conf_matrix_fig = compare_models(df)
+        
+        st.success("Model comparison completed!")
+        st.pyplot(conf_matrix_fig)
+        
+        # Save best model and vectorizer for predictions
+        st.session_state['best_model'] = best_model
+        st.session_state['vectorizer'] = vectorizer
 # Set the title
 st.title("Fake Job Post Detection")
 

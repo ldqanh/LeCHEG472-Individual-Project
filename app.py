@@ -438,18 +438,6 @@ if st.button("Compare Models"):
         st.session_state['vectorizer'] = vectorizer
 # Set the title
 st.title("Fake Job Post Detection")
-
-# Sidebar for user input
-st.sidebar.title("Options")
-uploaded_file = st.sidebar.file_uploader("Upload CSV File", type=["csv"])
-
-if uploaded_file:
-    # Load the dataset
-    df = pd.read_csv(uploaded_file, encoding='latin-1')
-    
-    # Data Preview
-    st.write("Data Preview:")
-    st.dataframe(df.head())
     
     # Data Loading and Model Comparison section
 st.header("Model Comparison")

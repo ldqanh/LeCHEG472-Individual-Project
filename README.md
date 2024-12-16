@@ -1,6 +1,6 @@
 # Fake Job Posting Detector
 
-A sophisticated Streamlit application that leverages machine learning to detect fraudulent job postings. The app employs multiple ML models, comprehensive data preprocessing, and interactive visualizations to provide accurate fraud detection and insights.
+A sophisticated Streamlit application that leverages machine learning to detect fraudulent job postings. The app employs multiple ML models, comprehensive data preprocessing, and interactive visualizations to provide accurate fraud detection and insights. The application can be found at https://lecheg472-individual-project-kshfsbmubj4dgnjwkn6xca.streamlit.app/  
 
 ## Features
 
